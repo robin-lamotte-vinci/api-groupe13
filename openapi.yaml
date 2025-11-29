@@ -1,14 +1,14 @@
 openapi: 3.0.3
 info:
-  title: Eventify Microservices API
+  title: Eventify API Gateway
   version: 1.0.0
   description: >
-    Spécification OpenAPI des principales APIs d'Eventify (authentification, utilisateurs,
-    catalogue d'événements, réservation, paiement, notifications, fidélité, support, analytics).
-
+    Spécification OpenAPI de l'API Gateway Eventify, exposant les principaux
+    endpoints des microservices : authentification, utilisateurs, catalogue d'événements,
+    réservation, paiement, notifications, fidélité, support, analytics.
 servers:
   - url: https://api.eventify.com
-    description: API Gateway
+    description: API Gateway principale
 
 tags:
   - name: Auth
@@ -61,7 +61,9 @@ components:
           additionalProperties: true
         correlationId:
           type: string
-      required: [errorCode, message]
+      required:
+        - errorCode
+        - message
 
     UserAuthRegisterRequest:
       type: object
@@ -79,7 +81,9 @@ components:
         language:
           type: string
           example: fr
-      required: [email, password]
+      required:
+        - email
+        - password
 
     UserAuthRegisterResponse:
       type: object
@@ -90,7 +94,9 @@ components:
         email:
           type: string
           format: email
-      required: [userId, email]
+      required:
+        - userId
+        - email
 
     UserAuthLoginRequest:
       type: object
@@ -100,7 +106,9 @@ components:
           format: email
         password:
           type: string
-      required: [email, password]
+      required:
+        - email
+        - password
 
     UserAuthLoginResponse:
       type: object
@@ -109,7 +117,9 @@ components:
           type: string
         expiresIn:
           type: integer
-      required: [accessToken, expiresIn]
+      required:
+        - accessToken
+        - expiresIn
 
     MeResponse:
       type: object
@@ -159,7 +169,12 @@ components:
           type: array
           items:
             type: string
-      required: [id, title, venueId, date, status]
+      required:
+        - id
+        - title
+        - venueId
+        - date
+        - status
 
     EventCreateRequest:
       type: object
@@ -183,7 +198,12 @@ components:
           type: array
           items:
             type: string
-      required: [title, venueId, date, capacity, basePrice]
+      required:
+        - title
+        - venueId
+        - date
+        - capacity
+        - basePrice
 
     EventUpdateRequest:
       type: object
@@ -267,7 +287,9 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/BookingItem'
-      required: [eventId, seats]
+      required:
+        - eventId
+        - seats
 
     Booking:
       type: object
@@ -303,10 +325,13 @@ components:
           format: uuid
         status:
           type: string
+          enum: [PENDING, CONFIRMED, CANCELLED]
         holdExpiresAt:
           type: string
           format: date-time
-      required: [bookingId, status]
+      required:
+        - bookingId
+        - status
 
     PaymentCreateRequest:
       type: object
@@ -319,7 +344,10 @@ components:
           enum: [card]
         cardToken:
           type: string
-      required: [bookingId, paymentMethod, cardToken]
+      required:
+        - bookingId
+        - paymentMethod
+        - cardToken
 
     Payment:
       type: object
@@ -350,6 +378,10 @@ components:
           format: uuid
         status:
           type: string
+          enum: [PENDING, PROCESSING, SUCCEEDED, FAILED]
+      required:
+        - paymentId
+        - status
 
     NotificationCreateRequest:
       type: object
@@ -365,7 +397,10 @@ components:
         payload:
           type: object
           additionalProperties: true
-      required: [userId, type, channel]
+      required:
+        - userId
+        - type
+        - channel
 
     LoyaltyBalanceResponse:
       type: object
@@ -383,7 +418,9 @@ components:
         bookingId:
           type: string
           format: uuid
-      required: [points, bookingId]
+      required:
+        - points
+        - bookingId
 
     SupportTicketCreateRequest:
       type: object
@@ -395,7 +432,9 @@ components:
         bookingId:
           type: string
           format: uuid
-      required: [subject, description]
+      required:
+        - subject
+        - description
 
     SupportTicketResponse:
       type: object
@@ -437,6 +476,7 @@ paths:
     post:
       tags: [Auth]
       summary: Créer un nouveau compte utilisateur
+      description: Inscription d'un nouvel utilisateur.
       requestBody:
         required: true
         content:
@@ -467,6 +507,7 @@ paths:
     post:
       tags: [Auth]
       summary: Authentifier un utilisateur
+      description: Authentification et émission d'un JWT.
       requestBody:
         required: true
         content:
@@ -493,6 +534,11 @@ paths:
       summary: Récupérer le profil de l'utilisateur courant
       security:
         - bearerAuth: []
+      x-roles:
+        - USER
+        - ORGANIZER
+        - SUPPORT
+        - ADMIN
       responses:
         '200':
           description: Profil utilisateur
@@ -511,6 +557,7 @@ paths:
     get:
       tags: [Events]
       summary: Lister les événements
+      description: Liste paginée des événements publiés.
       parameters:
         - name: q
           in: query
@@ -543,11 +590,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/EventListResponse'
+
     post:
       tags: [Events]
       summary: Créer un nouvel événement
+      description: Création d'un événement par un organisateur ou un administrateur.
       security:
         - bearerAuth: []
+      x-roles:
+        - ORGANIZER
+        - ADMIN
       requestBody:
         required: true
         content:
@@ -592,11 +644,16 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+
     patch:
       tags: [Events]
       summary: Mettre à jour partiellement un événement
+      description: Modification d'un événement par son organisateur propriétaire ou un admin.
       security:
         - bearerAuth: []
+      x-roles:
+        - ORGANIZER
+        - ADMIN
       parameters:
         - name: id
           in: path
@@ -618,7 +675,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Event'
         '403':
-          description: Accès interdit
+          description: Accès interdit (événement ne correspondant pas à l'organisateur)
           content:
             application/json:
               schema:
@@ -673,8 +730,11 @@ paths:
     post:
       tags: [Bookings]
       summary: Créer une réservation
+      description: Crée une réservation avec un HOLD temporaire, pour l'utilisateur authentifié.
       security:
         - bearerAuth: []
+      x-roles:
+        - USER
       requestBody:
         required: true
         content:
@@ -701,7 +761,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '409':
-          description: Conflit de stock
+          description: Conflit de stock (survente)
           content:
             application/json:
               schema:
@@ -711,8 +771,11 @@ paths:
     get:
       tags: [Bookings]
       summary: Récupérer une réservation
+      description: Récupère une réservation appartenant à l'utilisateur appelant.
       security:
         - bearerAuth: []
+      x-roles:
+        - USER
       parameters:
         - name: id
           in: path
@@ -728,7 +791,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/Booking'
         '403':
-          description: Accès interdit
+          description: Accès interdit (réservation d'un autre utilisateur)
           content:
             application/json:
               schema:
@@ -739,11 +802,15 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+
     delete:
       tags: [Bookings]
       summary: Annuler une réservation
+      description: Annulation d'une réservation appartenant à l'utilisateur appelant.
       security:
         - bearerAuth: []
+      x-roles:
+        - USER
       parameters:
         - name: id
           in: path
@@ -755,7 +822,13 @@ paths:
         '204':
           description: Réservation annulée
         '400':
-          description: Annulation non autorisée
+          description: Annulation non autorisée (statut incompatible)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Accès interdit (réservation d'un autre utilisateur)
           content:
             application/json:
               schema:
@@ -771,8 +844,11 @@ paths:
     post:
       tags: [Payments]
       summary: Initier un paiement
+      description: Initie le paiement d'une réservation de l'utilisateur.
       security:
         - bearerAuth: []
+      x-roles:
+        - USER
       requestBody:
         required: true
         content:
@@ -809,8 +885,11 @@ paths:
     get:
       tags: [Payments]
       summary: Récupérer un paiement
+      description: Récupère un paiement lié à une réservation de l'utilisateur appelant.
       security:
         - bearerAuth: []
+      x-roles:
+        - USER
       parameters:
         - name: id
           in: path
@@ -825,6 +904,12 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Payment'
+        '403':
+          description: Accès interdit (paiement d'un autre utilisateur)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
         '404':
           description: Non trouvé
           content:
@@ -836,8 +921,12 @@ paths:
     post:
       tags: [Notifications]
       summary: Créer une notification
+      description: Endpoint interne/exposé pour déclencher l'envoi d'une notification utilisateur.
       security:
         - bearerAuth: []
+      x-roles:
+        - ADMIN
+        - SUPPORT
       requestBody:
         required: true
         content:
@@ -858,8 +947,11 @@ paths:
     get:
       tags: [Loyalty]
       summary: Consulter le solde de fidélité
+      description: Retourne le solde de points de l'utilisateur authentifié.
       security:
         - bearerAuth: []
+      x-roles:
+        - USER
       responses:
         '200':
           description: Solde de points
@@ -878,8 +970,11 @@ paths:
     post:
       tags: [Loyalty]
       summary: Utiliser des points de fidélité
+      description: Utilisation de points pour une réservation de l'utilisateur.
       security:
         - bearerAuth: []
+      x-roles:
+        - USER
       requestBody:
         required: true
         content:
@@ -900,7 +995,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
         '409':
-          description: Conflit de concurrence / solde
+          description: Conflit de concurrence sur le solde
           content:
             application/json:
               schema:
@@ -910,8 +1005,12 @@ paths:
     post:
       tags: [Support]
       summary: Créer un ticket de support
+      description: Création d'un ticket de support par un utilisateur ou un organisateur.
       security:
         - bearerAuth: []
+      x-roles:
+        - USER
+        - ORGANIZER
       requestBody:
         required: true
         content:
@@ -936,8 +1035,13 @@ paths:
     get:
       tags: [Support]
       summary: Récupérer un ticket de support
+      description: >
+        Vue "client" d'un ticket de support appartenant à l'utilisateur ou à l'organisateur appelant.
       security:
         - bearerAuth: []
+      x-roles:
+        - USER
+        - ORGANIZER
       parameters:
         - name: id
           in: path
@@ -953,7 +1057,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/SupportTicketResponse'
         '403':
-          description: Accès interdit
+          description: Accès interdit (ticket ne correspondant pas au demandeur)
           content:
             application/json:
               schema:
@@ -968,9 +1072,23 @@ paths:
   /analytics/summary:
     get:
       tags: [Analytics]
-      summary: Récupérer un résumé analytique global
+      summary: Récupérer un résumé analytique global ou par organisateur
+      description: >
+        Retourne un résumé analytique global (ADMIN) ou restreint aux événements de l'organisateur appelant (ORGANIZER).
       security:
         - bearerAuth: []
+      x-roles:
+        - ADMIN
+        - ORGANIZER
+      parameters:
+        - name: scope
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [global, organizer]
+          description: >
+            global pour la vue globale (ADMIN uniquement), organizer pour la vue restreinte à l'organisateur appelant.
       responses:
         '200':
           description: Résumé analytique
@@ -979,7 +1097,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/AnalyticsSummaryResponse'
         '403':
-          description: Accès interdit
+          description: Accès interdit (scope non autorisé pour le rôle)
           content:
             application/json:
               schema:
